@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Analyzer</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #eef2f7;
+            --panel: #ffffff;
+            --panel-soft: #f7f9fc;
+            --text: #1d2733;
+            --muted: #61758a;
+            --line: #d8e1eb;
+            --accent: #1167d8;
+            --accent-dark: #0c4ea6;
+            --success: #157f56;
+            --success-dark: #0f6142;
+            --warning: #d98600;
+            --warning-dark: #ac6900;
+            --report: #8a3ffc;
+            --report-dark: #6b2ed3;
+            --danger-bg: #ffe9e8;
+            --danger-text: #b42318;
+            --shadow: 0 20px 45px rgba(17, 34, 68, 0.10);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background:
+                radial-gradient(circle at top right, rgba(17, 103, 216, 0.14), transparent 28%),
+                linear-gradient(180deg, #f7faff 0%, var(--bg) 100%);
+            color: var(--text);
+        }
+
+        .page {
+            max-width: 1480px;
+            margin: 0 auto;
+            padding: 28px 18px 42px;
+        }
+
+        .hero {
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            align-items: flex-start;
+            margin-bottom: 22px;
+            padding: 24px;
+            border-radius: 18px;
+            background:
+                linear-gradient(135deg, rgba(17, 103, 216, 0.98), rgba(15, 43, 85, 0.94)),
+                linear-gradient(180deg, #1f66d1, #183e7a);
+            color: #ffffff;
+            box-shadow: var(--shadow);
+        }
+
+        .hero h1 {
+            margin: 0 0 8px;
+            font-size: clamp(1.9rem, 3vw, 2.7rem);
+            line-height: 1.05;
+        }
+
+        .hero p {
+            margin: 0;
+            max-width: 760px;
+            line-height: 1.5;
+            color: rgba(255, 255, 255, 0.86);
+        }
+
+        .hero-metrics {
+            min-width: 260px;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(110px, 1fr));
+            gap: 10px;
+        }
+
+        .hero-metric {
+            padding: 14px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.10);
+            backdrop-filter: blur(8px);
+        }
+
+        .hero-metric strong {
+            display: block;
+            font-size: 1.35rem;
+            margin-bottom: 4px;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(340px, 380px) minmax(0, 1fr);
+            gap: 20px;
+            align-items: start;
+        }
+
+        .stack {
+            display: grid;
+            gap: 18px;
+            align-content: start;
+            align-items: start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid rgba(216, 225, 235, 0.9);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .panel-head {
+            padding: 18px 18px 10px;
+        }
+
+        .panel-head h2,
+        .panel-head h3 {
+            margin: 0 0 6px;
+            font-size: 1.05rem;
+        }
+
+        .panel-head p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.45;
+            font-size: 0.94rem;
+        }
+
+        .panel-body {
+            padding: 0 18px 18px;
+        }
+
+        .upload-form {
+            display: grid;
+            gap: 12px;
+        }
+
+        .file-input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 12px;
+            border: 1px dashed var(--line);
+            background: var(--panel-soft);
+        }
+
+        .button-row,
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .history-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .history-actions button {
+            width: 100%;
+            white-space: nowrap;
+        }
+
+        .control {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 130px;
+            flex: 1 1 150px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--muted);
+        }
+
+        input,
+        select,
+        button {
+            min-height: 42px;
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            padding: 10px 12px;
+            font: inherit;
+        }
+
+        button {
+            border: none;
+            cursor: pointer;
+            color: #ffffff;
+            background: var(--accent);
+            transition: transform 0.15s ease, background 0.15s ease;
+        }
+
+        button:hover {
+            background: var(--accent-dark);
+            transform: translateY(-1px);
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            transform: none;
+            opacity: 0.55;
+        }
+
+        .btn-secondary {
+            background: #49637e;
+        }
+
+        .btn-secondary:hover {
+            background: #33495f;
+        }
+
+        .btn-success {
+            background: var(--success);
+        }
+
+        .btn-success:hover {
+            background: var(--success-dark);
+        }
+
+        .btn-warning {
+            background: var(--warning);
+        }
+
+        .btn-warning:hover {
+            background: var(--warning-dark);
+        }
+
+        .btn-report {
+            background: var(--report);
+        }
+
+        .btn-report:hover {
+            background: var(--report-dark);
+        }
+
+        .btn-danger {
+            background: var(--danger-text);
+        }
+
+        .btn-danger:hover {
+            background: #8f1d14;
+        }
+
+        .current-file {
+            display: grid;
+            gap: 12px;
+            padding: 16px;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #f9fbff, #f0f5fb);
+            border: 1px solid var(--line);
+        }
+
+        .current-file h3 {
+            margin: 0;
+            font-size: 1.02rem;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(24, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .meta-card {
+            grid-column: auto;
+        }
+
+        .summary-card {
+            grid-column: span 4;
+        }
+
+        .summary-card-file {
+            grid-column: span 3;
+        }
+
+        .meta-card,
+        .summary-card {
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+        }
+
+        .summary-card-wide {
+            grid-column: span 2;
+        }
+
+        .summary-card-period {
+            grid-column: span 6;
+        }
+
+        .summary-card-upload-id {
+            grid-column: span 3;
+        }
+
+        .summary-card-http-status {
+            grid-column: span 6;
+        }
+
+        .summary-card-top-ip {
+            grid-column: span 6;
+        }
+
+        .summary-card .summary-value-lines {
+            display: grid;
+            gap: 4px;
+            color: var(--text);
+            font-size: 0.98rem;
+            font-weight: 700;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .meta-card span,
+        .summary-card span {
+            display: block;
+            font-size: 0.77rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .meta-card strong,
+        .summary-card strong {
+            display: block;
+            font-size: 0.98rem;
+            word-break: break-word;
+        }
+
+        .file-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .file-item {
+            width: 100%;
+            text-align: left;
+            padding: 14px;
+            border-radius: 14px;
+            background: var(--panel-soft);
+            color: var(--text);
+            border: 1px solid var(--line);
+        }
+
+        .file-item:hover {
+            background: #edf4ff;
+        }
+
+        .file-item.active {
+            border-color: rgba(17, 103, 216, 0.45);
+            background: rgba(17, 103, 216, 0.08);
+        }
+
+        .file-item-title {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .file-item small {
+            display: block;
+            color: var(--muted);
+            line-height: 1.45;
+        }
+
+        .workspace {
+            display: grid;
+            gap: 18px;
+        }
+
+        .toolbar {
+            padding: 18px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+        }
+
+        .toolbar-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .toolbar-actions button {
+            flex: 1 1 180px;
+        }
+
+        .chart-card,
+        .table-card,
+        .report-card,
+        .anomalies-card {
+            padding: 18px;
+        }
+
+        .chart-header,
+        .table-header,
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .chart-header h2,
+        .table-header h2,
+        .report-header h2 {
+            margin: 0;
+            font-size: 1.12rem;
+        }
+
+        .anomalies-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .anomaly-item {
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            background: linear-gradient(180deg, #fbfcff, #f4f7fb);
+        }
+
+        .anomaly-item strong {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 1rem;
+        }
+
+        .anomaly-item small {
+            display: inline-flex;
+            margin-bottom: 8px;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: rgba(17, 103, 216, 0.10);
+            color: var(--accent-dark);
+            text-transform: uppercase;
+            font-size: 0.74rem;
+            letter-spacing: 0.04em;
+        }
+
+        canvas {
+            width: 100%;
+            max-height: 380px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #ffffff;
+        }
+
+        th,
+        td {
+            padding: 12px 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--line);
+            vertical-align: top;
+        }
+
+        th {
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--muted);
+        }
+
+        .pagination {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .pagination button {
+            min-height: 36px;
+            padding: 8px 12px;
+        }
+
+        .report-box {
+            padding: 16px;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            background: linear-gradient(180deg, #fafcff, #f4f7fb);
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .message-box {
+            display: none;
+            margin-top: 16px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            line-height: 1.45;
+        }
+
+        .message-box.error {
+            display: block;
+            background: var(--danger-bg);
+            color: var(--danger-text);
+            border-color: rgba(180, 35, 24, 0.14);
+        }
+
+        .message-box.info {
+            display: block;
+            background: #eaf3ff;
+            color: #15407c;
+            border-color: rgba(21, 64, 124, 0.16);
+        }
+
+        .empty-state {
+            padding: 18px;
+            border-radius: 14px;
+            background: var(--panel-soft);
+            color: var(--muted);
+            border: 1px dashed var(--line);
+        }
+
+        @media (max-width: 1100px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .hero {
+                flex-direction: column;
+            }
+
+            .hero-metrics {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .page {
+                padding: 18px 12px 30px;
+            }
+
+            .hero,
+            .toolbar,
+            .panel,
+            .chart-card,
+            .table-card,
+            .report-card {
+                border-radius: 14px;
+            }
+
+            .chart-header,
+            .table-header,
+            .report-header,
+            .file-item-title {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .summary-card-wide {
+                grid-column: auto;
+            }
+
+            .summary-card-period,
+            .summary-card-file,
+            .summary-card-upload-id,
+            .summary-card-http-status,
+            .summary-card-top-ip {
+                grid-column: auto;
+            }
+
+            .meta-card,
+            .summary-card {
+                grid-column: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <section class="hero">
+        <div>
+            <h1>Log Analyzer</h1>
+            <p>
+                Веб-приложение для загрузки журналов событий, автоматического определения формата,
+                парсинга, анализа и подготовки человекопонятного отчёта. Здесь уже собран
+                цельный сценарий: файл загружается, обрабатывается и сразу становится доступен
+                для статистики, суммаризации и экспорта.
+            </p>
+        </div>
+        <div class="hero-metrics">
+            <div class="hero-metric">
+                <strong id="heroUploadCount">0</strong>
+                <span>Загрузок в системе</span>
+            </div>
+            <div class="hero-metric">
+                <strong id="heroCurrentFormat">—</strong>
+                <span>Формат текущего лога</span>
+            </div>
+            <div class="hero-metric">
+                <strong id="heroCurrentEvents">—</strong>
+                <span>Событий в анализе</span>
+            </div>
+            <div class="hero-metric">
+                <strong id="heroParseStatus">—</strong>
+                <span>Статус обработки</span>
+            </div>
+        </div>
+    </section>
+
+    <div class="layout">
+        <aside class="stack">
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>Загрузка логов</h2>
+                    <p>Добавь новый файл, чтобы система определила формат и сохранила строки для последующего анализа.</p>
+                </div>
+                <div class="panel-body">
+                    <form id="uploadForm" class="upload-form">
+                        <input type="file" id="logFileInput" class="file-input" accept=".log,.txt" required>
+                        <div class="button-row">
+                            <button type="submit" class="btn-success">Загрузить файл</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>Текущая загрузка</h2>
+                    <p>Этот блок помогает быстро понять, какой лог сейчас выбран и что с ним уже сделано.</p>
+                </div>
+                <div class="panel-body">
+                    <div id="currentFileCard" class="current-file">
+                        <h3 id="currentFileName">Файл ещё не выбран</h3>
+                        <div class="meta-grid" id="currentFileMeta"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>История загрузок</h2>
+                    <p>Можно вернуться к уже загруженному файлу и сразу продолжить работу с нужной загрузкой.</p>
+                </div>
+                <div class="panel-body">
+                    <div class="history-actions">
+                        <button type="button" id="refreshUploadsBtn" class="btn-secondary">Обновить загрузки</button>
+                        <button type="button" id="clearUploadsBtn" class="btn-danger">Очистить загрузки</button>
+                    </div>
+                    <div id="uploadedFilesList" class="file-list"></div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head">
+                    <h2>История отчётов</h2>
+                    <p>Сохранённые отчёты можно открыть повторно и скачать как PDF без новой генерации.</p>
+                </div>
+                <div class="panel-body">
+                    <div class="history-actions">
+                        <button type="button" id="refreshReportsBtn" class="btn-secondary">Обновить отчёты</button>
+                        <button type="button" id="clearReportsBtn" class="btn-danger">Очистить отчёты</button>
+                    </div>
+                    <div id="savedReportsList" class="file-list"></div>
+                </div>
+            </section>
+        </aside>
+
+        <main class="workspace">
+            <section class="toolbar">
+                <div class="filters">
+                    <div class="control">
+                        <label for="level">Уровень</label>
+                        <select id="level">
+                            <option value="">Все уровни</option>
+                            <option value="info">info</option>
+                            <option value="notice">notice</option>
+                            <option value="warning">warning</option>
+                            <option value="error">error</option>
+                        </select>
+                    </div>
+                    <div class="control">
+                        <label for="group_by">Агрегация</label>
+                        <select id="group_by">
+                            <option value="hour">По часам</option>
+                            <option value="day">По дням</option>
+                            <option value="minute">По минутам</option>
+                        </select>
+                    </div>
+                    <div class="control">
+                        <label for="message_sort">Сортировка сообщений</label>
+                        <select id="message_sort">
+                            <option value="count_desc">Частые сначала</option>
+                            <option value="count_asc">Редкие сначала</option>
+                            <option value="first_seen_asc">Сначала ранние</option>
+                            <option value="first_seen_desc">Сначала поздние</option>
+                            <option value="last_seen_desc">Недавние сверху</option>
+                            <option value="level_asc">По уровню</option>
+                            <option value="message_asc">По тексту</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="toolbar-actions">
+                    <button id="parseBtn">Распарсить текущий лог</button>
+                    <button id="loadBtn" class="btn-secondary">Показать статистику</button>
+                    <button id="summarizeBtn" class="btn-warning">Суммаризировать сообщения</button>
+                    <button id="reportBtn" class="btn-report">Сгенерировать текстовый отчёт</button>
+                    <button id="exportPdfBtn" class="btn-success">Скачать PDF</button>
+                </div>
+            </section>
+
+            <section id="statsContainer" class="panel" style="display: none;">
+                <div class="chart-card">
+                    <div class="summary-grid" id="summary"></div>
+                </div>
+                <div class="anomalies-card">
+                    <div class="report-header">
+                        <h2>Аномалии и важные сигналы</h2>
+                        <span id="anomalyMeta" class="empty-state" style="padding: 8px 12px;">Правила оценивают всплески, ошибки и повторяющиеся события.</span>
+                    </div>
+                    <div id="anomaliesList" class="anomalies-list"></div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h2>Временной ряд</h2>
+                        <span id="chartHint" class="empty-state" style="padding: 8px 12px;">График обновляется после парсинга и выбора загрузки.</span>
+                    </div>
+                    <canvas id="timeSeriesChart"></canvas>
+                </div>
+                <div class="table-card">
+                    <div class="table-header">
+                        <h2>Топ сообщений</h2>
+                        <div class="pagination">
+                            <button id="prevPageBtn" disabled>Предыдущая</button>
+                            <span id="pageInfo"></span>
+                            <button id="nextPageBtn" disabled>Следующая</button>
+                        </div>
+                    </div>
+                    <table id="messagesTable">
+                        <thead>
+                            <tr>
+                                <th>Сообщение</th>
+                                <th>Количество</th>
+                                <th>Уровень</th>
+                                <th>Первое появление</th>
+                                <th>Последнее появление</th>
+                                <th>Пояснение</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section id="reportContainer" class="panel" style="display: none;">
+                <div class="report-card">
+                    <div class="report-header">
+                        <h2>Текстовый отчёт</h2>
+                        <span id="reportMeta" class="empty-state" style="padding: 8px 12px;">Отчёт будет привязан к текущей загрузке.</span>
+                    </div>
+                    <div id="reportText" class="report-box"></div>
+                </div>
+            </section>
+
+            <div id="messageBox" class="message-box"></div>
+        </main>
+    </div>
+</div>
+<script src="/static/app.js?v=summary-layout-6"></script>
+</body>
+</html>
