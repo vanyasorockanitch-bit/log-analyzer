@@ -1,22 +1,11 @@
-.venv/
-runtime/
-
 __pycache__/
-*.pyc
-*.pyo
-
-dev.db
-.test_tmp/
-tmp_*.db
-tmp_*.db-journal
-
-run_dev_acceptance.log
-docx_qa/
-docs/demo/edge-profile/
-
-logs/
-outputs/
-
-# Windows/Yandex Disk duplicate copies.
-* (2)
-* (2).*
+*.py[cod]
+.venv/
+.env
+.env.*
+!.env.example
+*.db
+runtime/
+models/
+.vscode/
+.idea/
